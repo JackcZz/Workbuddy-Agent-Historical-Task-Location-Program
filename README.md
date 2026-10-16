@@ -12,6 +12,8 @@
 
 ### 模式 A — 控制台（完整双栏）
 
+![控制台](docs/screenshots/console.png)
+
 ```bash
 python3 server.py --port 8901      # 或双击 start.command
 # 打开 http://127.0.0.1:8901/
@@ -20,6 +22,8 @@ python3 server.py --port 8901      # 或双击 start.command
 左栏任务列表 + 右栏完整对话回放。适合坐下来翻、搜索、定位。
 
 ### 模式 B — 悬浮面板（贴屏幕右侧，始终置顶）
+
+![悬浮面板](docs/screenshots/panel.png)
 
 ```bash
 bash swift/build.sh                 # 一键编译成 .app
@@ -153,9 +157,23 @@ wb-history-console/
 ├── swift/             macOS 原生悬浮面板（NSPanel + WKWebView）
 │   ├── Panel.swift
 │   └── build.sh       一键编译成 .app
-├── start.command      双击启动控制台
-└── scripts/           冒烟测试
+├── start.command      双击启动控制台（模式 A）
+├── start-panel.command 双击编译并启动悬浮面板（模式 B）
+├── scripts/
+│   ├── smoke_test.py  端到端冒烟测试
+│   └── screenshot.py  生成 README 展示截图（demo 模式）
+└── docs/screenshots/  README 里用到的界面截图（已脱敏）
 ```
+
+## 重新生成 README 里的截图
+
+```bash
+python3 scripts/screenshot.py
+```
+
+用无头 Chrome 打开 **`?demo=1` 演示模式**截图 —— 该模式下真实任务标题、
+原始提问、工作区、本地路径、账号 id 会被**整体替换**成占位文本，
+所以截图**天然不含任何个人信息**，可直接放进公开仓库，无需手工打码。
 
 ## 隐私
 

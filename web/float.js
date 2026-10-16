@@ -7,6 +7,14 @@ let TASKS = [], PROMPTS = {}, CURRENT_ID = '';
 let tab = 'current', viewId = null, timer = null;
 let pinned = false;              // 用户在查看某个具体任务时锁定，不跟随当前会话
 
+/* ---------- 演示模式（?demo=1）：截图/分享用，文本替换为占位内容 ---------- */
+const DEMO = new URLSearchParams(location.search).has('demo');
+const DEMO_TEXT = '这是一条用于界面展示的示例文本，真实内容已脱敏处理。';
+const mText = s => DEMO ? DEMO_TEXT : s;
+const mTitle = (s, i) => DEMO ? ('示例任务 ' + (i + 1)) : s;
+
+if (DEMO) document.documentElement.classList.add('demo');
+
 /* ---------- 数据 ---------- */
 
 async function boot(){
@@ -22,7 +30,8 @@ async function boot(){
 
 async function loadMsgs(id){
   const t = TASKS.find(x => x.id === id);
-  $('#f-title').textContent = t ? t.title : '会话';
+  const idx = TASKS.findIndex(x => x.id === id);
+  $('#f-title').textContent = t ? mTitle(t.title, idx < 0 ? 0 : idx) : '会话';
   $('#f-dot').className = 'dot d-' + (['completed','terminated','error','working'].includes(t?.status) ? t.status : 'other');
 
   let d;
@@ -42,10 +51,10 @@ async function loadMsgs(id){
     <div class="fl-msg ${m.kind}" data-line="${m.line}">
       <div class="h">
         <span class="ln" title="点击定位到第 ${m.line} 行">L${m.line}</span>
-        <span>${who[m.kind] || m.kind}${m.name ? ' · '+esc(m.name) : ''}</span>
+        <span>${who[m.kind] || m.kind}${m.name ? ' · '+esc(DEMO ? '示例工具' : m.name) : ''}</span>
         <span style="margin-left:auto">${esc(m.time || '')}</span>
       </div>
-      <div class="b">${esc(m.text)}</div>
+      <div class="b">${esc(mText(m.text))}</div>
     </div>`).join('');
 
   if(!pinned) $('#f-body').scrollTop = $('#f-body').scrollHeight;
@@ -58,11 +67,11 @@ function renderHistory(){
     arr = arr.filter(t => (t.title + ' ' + (PROMPTS[t.id]||'') + ' ' + t.workspace).toLowerCase().includes(q));
   }
   if(!arr.length){ $('#f-body').innerHTML = `<div class="empty">没有匹配</div>`; return; }
-  $('#f-body').innerHTML = arr.slice(0, 120).map(t => {
+  $('#f-body').innerHTML = arr.slice(0, 120).map((t, i) => {
     const cls = ['completed','terminated','error','working'].includes(t.status) ? t.status : 'other';
     return `<div class="fl-task ${t.id===viewId?'active':''}" data-id="${t.id}">
-      <div class="t1"><span class="dot d-${cls}"></span> ${esc(t.title)} ${t.id===CURRENT_ID?'<span class="badge">当前</span>':''}</div>
-      <div class="t2">${esc(t.created_str.slice(5))} · ${esc(t.workspace || '-')}</div>
+      <div class="t1"><span class="dot d-${cls}"></span> ${esc(mTitle(t.title, i))} ${t.id===CURRENT_ID?'<span class="badge">当前</span>':''}</div>
+      <div class="t2">${esc(t.created_str.slice(5))} · ${esc(DEMO ? '示例工作区' : (t.workspace || '-'))}</div>
     </div>`;
   }).join('');
 }

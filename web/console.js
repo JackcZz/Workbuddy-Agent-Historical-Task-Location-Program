@@ -7,6 +7,17 @@ let TASKS = [], PROMPTS = {}, CURRENT_ID = '';
 let state = { q:'', st:'all', user:'', sort:'new', tools:true };
 let activeId = null, timer = null;
 
+/* ---------- 演示模式（?demo=1）----------
+   截图/分享用：把所有真实文本换成占位内容，避免截屏泄露真实任务与路径。
+   不影响正常使用，也不改动任何数据。 */
+const DEMO = new URLSearchParams(location.search).has('demo');
+const DEMO_TEXT = '这是一条用于界面展示的示例文本，真实内容已脱敏处理。';
+const mText = s => DEMO ? DEMO_TEXT : s;
+const mPath = s => DEMO ? '~/WorkBuddy/示例工作区/…' : s;
+const mTitle = (s, i) => DEMO ? ('示例任务 ' + (i + 1)) : s;
+
+if (DEMO) document.documentElement.classList.add('demo');
+
 /* ---------- 数据 ---------- */
 
 async function loadTasks(refresh){
@@ -14,7 +25,7 @@ async function loadTasks(refresh){
   const d = await r.json();
   TASKS = d.tasks || [];
   CURRENT_ID = d.current_id || '';
-  $('#sb-sub').textContent = `共 ${TASKS.length} 条任务 · ${d.wb_dir || ''}`;
+  $('#sb-sub').textContent = `共 ${TASKS.length} 条任务${DEMO ? '' : ' · ' + (d.wb_dir || '')}`;
   buildUserSel();
   loadPrompts(refresh);
   render();
@@ -34,11 +45,12 @@ function buildUserSel(){
   const keep = state.user;
   $('#userSel').innerHTML =
     `<option value="">全部账号 · ${TASKS.length}</option>` +
-    users.map(u => {
+    users.map((u, i) => {
       const n = TASKS.filter(t => t.user_id === u).length;
       const mark = (u === curUser && u !== keep) ? '（当前）' : '';
       const sel = (keep ? u === keep : u === curUser) ? 'selected' : '';
-      return `<option value="${esc(u)}" ${sel}>${esc(u.slice(0,8))}… · ${n} 条 ${mark}</option>`;
+      const label = DEMO ? `账号 ${i + 1}` : `${esc(u.slice(0,8))}…`;
+      return `<option value="${esc(u)}" ${sel}>${label} · ${n} 条 ${mark}</option>`;
     }).join('');
   if(!keep) state.user = curUser;
 }
@@ -73,20 +85,21 @@ function render(){
     return;
   }
 
-  $('#list').innerHTML = arr.map(t => {
-    const p = (PROMPTS[t.id] || '').replace(/\s+/g,' ').trim();
+  $('#list').innerHTML = arr.map((t, i) => {
+    const raw = (PROMPTS[t.id] || '').replace(/\s+/g,' ').trim();
+    const p = DEMO ? DEMO_TEXT : raw;
     const cls = ['completed','terminated','error','working'].includes(t.status) ? t.status : 'other';
     const isCur = t.id === CURRENT_ID;
     return `<div class="task ${t.id===activeId?'active':''} ${isCur?'cur':''}" data-id="${t.id}">
       <div class="t-top">
         <span class="dot d-${cls}"></span>
-        <span class="t-title">${hl(t.title, state.q)}</span>
+        <span class="t-title">${DEMO ? mTitle(t.title, i) : hl(t.title, state.q)}</span>
         ${isCur ? '<span class="badge">当前</span>' : ''}
         <span class="t-when">${t.created_str.slice(5)}</span>
       </div>
-      ${p ? `<div class="t-sub">${hl(p.slice(0,140), state.q)}</div>` : ''}
+      ${p ? `<div class="t-sub">${DEMO ? p : hl(p.slice(0,140), state.q)}</div>` : ''}
       <div class="t-meta">
-        <span>📁 ${hl(t.workspace || '-', state.q)}</span>
+        <span>📁 ${DEMO ? '示例工作区' : hl(t.workspace || '-', state.q)}</span>
         ${t.size_mb ? `<span>💾 ${t.size_mb} MB</span>` : ''}
         ${t.model ? `<span>🤖 ${esc(t.model)}</span>` : ''}
         <span>${esc(t.status)}</span>
@@ -104,12 +117,13 @@ async function select(id){
   if(!t) return;
 
   $('#mhead').style.display = '';
-  $('#m-title').textContent = t.title + (id === CURRENT_ID ? '（当前会话）' : '');
+  $('#m-title').textContent = (DEMO ? mTitle(t.title, 0) : t.title)
+    + (id === CURRENT_ID ? '（当前会话）' : '');
   $('#m-meta').innerHTML =
     `${esc(t.created_str)} → ${esc(t.updated_str)} · ${esc(t.status)}` +
     (t.model ? ` · ${esc(t.model)}` : '') +
-    `<br><span class="mono" style="color:var(--faint)">${esc(t.cwd || '无工作目录')}</span>` +
-    (t.jsonl ? `<br><span class="mono" style="color:var(--faint)">${esc(t.jsonl)}</span>` : '');
+    `<br><span class="mono" style="color:var(--faint)">${esc(mPath(t.cwd || '无工作目录'))}</span>` +
+    (t.jsonl ? `<br><span class="mono" style="color:var(--faint)">${esc(mPath(t.jsonl))}</span>` : '');
   $('#mbody').innerHTML = `<div class="spin">读取对话流水…</div>`;
 
   await loadMessages(id);
@@ -142,10 +156,10 @@ async function loadMessages(id){
     <div class="msg ${m.kind}" data-line="${m.line}">
       <div class="msg-head">
         <span class="ln" title="点击定位到文件第 ${m.line} 行">L${m.line}</span>
-        <span class="msg-who ${m.role}">${who[m.kind] || m.kind}${m.name ? ' · '+esc(m.name) : ''}</span>
+        <span class="msg-who ${m.role}">${who[m.kind] || m.kind}${m.name ? ' · '+esc(DEMO ? '示例工具' : m.name) : ''}</span>
         <span class="msg-time">${esc(m.time || '')}</span>
       </div>
-      <div class="msg-text">${esc(m.text)}</div>
+      <div class="msg-text">${esc(mText(m.text))}</div>
     </div>`).join('');
 }
 
