@@ -1,17 +1,21 @@
 import Cocoa
 import WebKit
 import Foundation
+import Darwin      // kill() / SIGKILL
 
 // MARK: - 配置
 
 let DEFAULT_PORT = 8901
+
+/// 全局引用：进程被 kill 时，信号处理器要靠它收走自己拉起的服务
+var gServerProc: Process?
+
 let PANEL_WIDTH: CGFloat = 392
 let DRAG_HEIGHT: CGFloat = 30      // 顶部可拖动区高度
 let DRAG_RIGHT_MARGIN: CGFloat = 108 // 右侧留给页面按钮，避免挡住交互
 let BAR_HEIGHT: CGFloat = 38       // 底部原生工具条
 
-func configuredPort() -> Int {
-    let env = ProcessInfo.processInfo.environment
+func configuredPort() -> Int {    let env = ProcessInfo.processInfo.environment
     if let s = env["WB_HISTORY_PORT"], let p = Int(s), p > 0 { return p }
     let ud = UserDefaults.standard.integer(forKey: "WBHistoryPort")
     return ud > 0 ? ud : DEFAULT_PORT
@@ -55,6 +59,8 @@ class FloatPanel: NSPanel {
     var webView: WKWebView!
     var port: Int = DEFAULT_PORT
     var onToggleConsole: (() -> Void)?
+    /// 由本面板拉起的服务进程（退出时要带走，避免留下孤儿进程）
+    var serverProc: Process?
 
     convenience init(port: Int) {
         let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
@@ -189,19 +195,21 @@ class FloatPanel: NSPanel {
         webView.loadHTMLString(html, baseURL: nil)
     }
 
-    /// 确保本地服务在跑；返回是否可用
+    /// 确保本地服务在跑；返回是否可用。
+    /// 会在 port..port+9 范围内扫描：既能复用别人已启动的服务，
+    /// 也能接住 server.py 因端口占用而自动顺延后的新端口。
     private func ensureServer() -> Bool {
-        if healthOK() { return true }
+        for p in port...(port + 9) where healthOK(p) { port = p; return true }
         startServer()
-        for _ in 0..<40 {   // 最多等 ~10 秒
+        for _ in 0..<40 {                       // 最多等 ~10 秒
             Thread.sleep(forTimeInterval: 0.25)
-            if healthOK() { return true }
+            for p in port...(port + 9) where healthOK(p) { port = p; return true }
         }
         return false
     }
 
-    private func healthOK() -> Bool {
-        guard let url = URL(string: baseURL(port) + "/api/health") else { return false }
+    private func healthOK(_ p: Int) -> Bool {
+        guard let url = URL(string: baseURL(p) + "/api/health") else { return false }
         let sem = DispatchSemaphore(value: 0)
         var ok = false
         let task = URLSession.shared.dataTask(with: url) { _, resp, _ in
@@ -209,7 +217,7 @@ class FloatPanel: NSPanel {
             sem.signal()
         }
         task.resume()
-        _ = sem.wait(timeout: .now() + 2)
+        _ = sem.wait(timeout: .now() + 1.5)
         return ok
     }
 
@@ -220,7 +228,26 @@ class FloatPanel: NSPanel {
         p.arguments = [script, "--port", String(port), "--no-open"]
         p.standardOutput = FileHandle.nullDevice
         p.standardError = FileHandle.nullDevice
-        try? p.run()
+        do {
+            try p.run()
+            serverProc = p          // 记下来，退出时 terminate
+            gServerProc = p         // 信号处理器也要用
+        } catch {
+            serverProc = nil
+        }
+    }
+
+    /// 退出前收掉自己拉起的服务（只收自己起的，不动别人已有的）
+    func stopOwnServer() {
+        if let p = serverProc ?? gServerProc, p.isRunning {
+            p.terminate()
+            let proc = p
+            DispatchQueue.global().asyncAfter(deadline: .now() + 1.5) {
+                if proc.isRunning { kill(proc.processIdentifier, SIGKILL) }
+            }
+        }
+        serverProc = nil
+        gServerProc = nil
     }
 
     private func findPython() -> String? {
@@ -310,13 +337,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc func resetPosition() { panel.resetPosition() }
 
     @objc func quit() {
+        panel.stopOwnServer()      // 带走自己拉起的服务，不留孤儿进程
         NSApp.terminate(nil)
+    }
+
+    func applicationWillTerminate(_ a: Notification) {
+        panel?.stopOwnServer()
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ s: NSApplication) -> Bool { false }
 }
 
 // MARK: - main
+
+// 被 kill / Ctrl-C 时同样收走自己拉起的服务（AppKit 的 delegate 回调走不到这里）
+signal(SIGTERM) { _ in gServerProc?.terminate(); exit(0) }
+signal(SIGINT)  { _ in gServerProc?.terminate(); exit(0) }
 
 let app = NSApplication.shared
 let delegate = AppDelegate()
