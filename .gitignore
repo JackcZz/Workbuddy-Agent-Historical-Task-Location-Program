@@ -1,0 +1,26 @@
+# 运行产物 —— 含本机绝对路径与真实对话内容，绝不能进仓库
+data.json
+*.jsonl
+session-cache/
+
+# 构建产物
+build/
+dist/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 本机状态
+*.log
+.DS_Store
+.panel-state
+*.swp
+
+# 编辑器
+.idea/
+.vscode/
+*.code-workspace

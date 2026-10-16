@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WorkBuddy 历史任务控制台</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- 左：任务列表 -->
+  <aside class="sidebar">
+    <div class="sb-head">
+      <div style="display:flex;align-items:center;gap:6px">
+        <h1 style="flex:1;min-width:0">历史任务控制台</h1>
+        <button class="btn sm" id="modeFloat" title="切到悬浮面板模式（贴右侧置顶）">🪟 悬浮模式</button>
+      </div>
+      <div class="sub" id="sb-sub">加载中…</div>
+    </div>
+    <div class="sb-tools">
+      <input type="search" id="q" placeholder="搜索标题 / 提问 / 工作区…">
+      <div class="frow">
+        <span class="chip on" data-st="all">全部</span>
+        <span class="chip" data-st="completed">完成</span>
+        <span class="chip" data-st="terminated">终止</span>
+        <span class="chip" data-st="error">出错</span>
+        <span class="chip" data-st="working">进行中</span>
+      </div>
+      <div class="frow">
+        <select id="userSel" style="flex:1;min-width:0"></select>
+        <select id="sortSel">
+          <option value="new">最近</option>
+          <option value="old">最早</option>
+          <option value="size">体积</option>
+        </select>
+        <button class="btn sm" id="btnRefresh" title="重新扫描">↻</button>
+      </div>
+    </div>
+    <div class="sb-list" id="list"><div class="spin">加载中…</div></div>
+  </aside>
+
+  <!-- 右：详情 -->
+  <main class="main">
+    <div class="m-head" id="mhead" style="display:none">
+      <h2 id="m-title">—</h2>
+      <div class="meta" id="m-meta"></div>
+      <div class="m-actions">
+        <button class="btn primary" id="a-open-dir">📁 打开工作目录（agent 位置）</button>
+        <button class="btn" id="a-reveal">🔍 访达中显示对话文件</button>
+        <button class="btn" id="a-copy-path">📋 复制路径</button>
+        <span class="btn sm" id="a-jump" title="跳到指定行">⇱ 跳行</span>
+        <span style="flex:1"></span>
+        <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:4px">
+          <input type="checkbox" id="showTools" checked> 显示工具调用
+        </label>
+        <span class="btn sm" id="a-reload">↻ 刷新对话</span>
+      </div>
+    </div>
+    <div class="m-body" id="mbody">
+      <div class="empty">
+        从左侧选择一个任务，查看它的完整历史对话。<br>
+        每条消息左侧的 <code class="mono">L123</code> 是它在该任务对话文件中的行号，点击可直接定位。
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script src="console.js"></script>
+</body>
+</html>

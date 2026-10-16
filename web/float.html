@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>会话面板</title>
+<link rel="stylesheet" href="app.css">
+<style>
+  body{background:#fff}
+  .fl-msg .b{max-height:340px;overflow:auto}
+  .hint{color:var(--faint);font-size:11px;padding:6px 2px}
+</style>
+</head>
+<body>
+<div class="fl">
+
+  <div class="fl-head">
+    <span class="dot d-working" id="f-dot"></span>
+    <span class="t" id="f-title">当前会话</span>
+    <button class="btn sm" id="f-back" style="display:none">←</button>
+    <button class="btn sm" id="f-console" title="切到完整控制台模式">⛶ 控制台</button>
+    <button class="btn sm" id="f-locate" title="打开该任务工作目录">📁</button>
+    <button class="btn sm" id="f-reload" title="刷新">↻</button>
+  </div>
+
+  <div class="fl-tabs">
+    <div class="tab on" data-tab="current">当前会话</div>
+    <div class="tab" data-tab="history">历史任务</div>
+  </div>
+
+  <div class="fl-body" id="f-body">
+    <div class="spin">加载中…</div>
+  </div>
+
+  <div class="fl-foot" id="f-foot" style="display:none">
+    <input type="search" id="f-q" placeholder="搜索历史任务…">
+  </div>
+
+</div>
+<script src="float.js"></script>
+</body>
+</html>
